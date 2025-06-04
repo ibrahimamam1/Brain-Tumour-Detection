@@ -1,0 +1,3 @@
+Trained ViT model Download Link:
+
+https://drive.google.com/file/d/1UaFw3vAuimY6r47mYbkyFXmtsjwDjsoP/view?usp=sharing
