@@ -1,0 +1,58 @@
+Next Developer’s Guide
+
+
+
+ What has been done so far:
+Tii Vit_part1 : 210041240: Kazi Shakkhar Rahman
+
+A Vision Transformer (ViT) model was implemented for brain tumour detection.
+
+**Achieved 94–96% accuracy on a completely separate testing dataset.
+
+Ensured strict separation between training and testing datasets (no overlap).
+
+Created detailed visualizations (confusion matrix, learning curves).
+
+Added a simplified testing interface in the notebook.
+
+Prerpocessed and Seperated Datasets.
+
+Provided dataset download links and prepared the environment for easy use.
+
+
+Advice :
+
+Follow the Notesbooks Text Fields to easily run it. Ensure Mounting With Google drive. All Are given in notebooks.
+It will save your time.
+
+###Open fields for further development:
+
+
+***
+The core model is complete and has achieved strong accuracy using a pretrained Vision Transformer (ViT). However, there are several clear areas open for further development beyond accuracy improvement:
+***
+Learning Enhancements:
+-------------------------------
+Use Domain Adaptation to generalize across different datasets.
+
+Apply Self-Supervised Learning to leverage unlabeled data.
+
+Implement Federated Learning to enable privacy-preserving collaboration.
+
+
+UI & Deployment:
+-------------------------------
+Build a user interface using Streamlit or Gradio.
+
+Deploy the model for real-world use (web or local).
+
+
+Interpretability & Visualization:
+-------------------------------
+Add tools like:
+
+t-SNE for feature space visualization.
+
+Grad-CAM to highlight image regions influencing predictions.
+
+SHAP for detailed explanation of model outputs.
