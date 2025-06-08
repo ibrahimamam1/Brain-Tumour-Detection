@@ -1,2 +1,7 @@
+Original DataSet Link: https://www.kaggle.com/datasets/masoudnickparvar/brain-tumor-mri-dataset?select=Testing
+
 Download Link For Preprocessed Dataset:
 https://drive.google.com/file/d/1t6YaHNbLmA4ZqrJxrtzoPDRxM6kFIv0H/view?usp=sharing
+
+
+(Used For Training)
