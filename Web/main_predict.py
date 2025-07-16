@@ -1,5 +1,6 @@
 import os
 import torch
+import gdown
 import urllib.request
 import random  # Added for the random noise transform
 from torchvision import transforms 
@@ -15,8 +16,8 @@ import requests  # For uploading files to GoFile
 
 # ========== CONFIGURATION ========== #
 
-MODEL_PATH = "C:\\Users\\asdal\\Downloads\\Brain-Tumour-Detection-main\\Brain-Tumour-Detection-main\\UI-AHMED-\\vit_brain_tumor.pth"
-MODEL_URL = "https://drive.google.com/uc?export=download&id=1UaFw3vAuimY6r47mYbkyFXmtsjwDjsoP"  # Updated Google Drive download link
+MODEL_PATH = os.path.join("..", "Models", "vit_brain_tumor.pth")
+MODEL_URL = "https://drive.google.com/uc?id=1UaFw3vAuimY6r47mYbkyFXmtsjwDjsoP"
 
 cred = credentials.Certificate("project-ml-c9e5f-firebase-adminsdk-fbsvc-2618b8c059.json")
 firebase_admin.initialize_app(cred, {
@@ -28,9 +29,12 @@ firebase_admin.initialize_app(cred, {
 # ========== DOWNLOAD MODEL IF NEEDED ========== #
 def download_model():
     if not os.path.exists(MODEL_PATH):
+        model_dir = os.path.dirname(MODEL_PATH)
+        os.makedirs(model_dir, exist_ok=True)
         print("🔽 Downloading model...")
         try:
-            urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+            gdown.download(MODEL_URL, MODEL_PATH, quiet=False)
+
             print("✅ Model downloaded.")
         except Exception as e:
             print(f"❌ Download failed: {str(e)}")
@@ -149,15 +153,9 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
             else:
                 raise ValueError(f"Unsupported image type: {type(img_data)}")
 
-<<<<<<< HEAD
-            # Perform 1 round with 1 predictions each
+            # Perform 1 round with 10 predictions each
             rounds = 1
             preds_per_round = 1
-=======
-            # Perform 1 round with 10 predictions each
-            rounds = 20
-            preds_per_round = 20
->>>>>>> 9498a742ab7d81ef3184c1deecd6e38c469c0623
             round_confidences = []
 
             for r in range(rounds):

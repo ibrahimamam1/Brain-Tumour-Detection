@@ -172,3 +172,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+Models/vit_brain_tumor.pth
+*.pth
+*.pt

@@ -1,0 +1,7 @@
+torch
+torchvision
+uuid 
+firebase_admin
+requests
+gradio
+gdown

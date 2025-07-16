@@ -4,12 +4,6 @@ import io
 from main_predict import predict_brain_tumor_batch  # updated function for batch
 
 
-
-
-
-
-
-
 CSS = """
 html,
 body, .gradio-container {
