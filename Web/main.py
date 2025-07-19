@@ -4,6 +4,7 @@ import io
 from main_predict import predict_brain_tumor_batch  # updated function for batch
 
 
+
 CSS = """
 html,
 body, .gradio-container {
@@ -221,10 +222,18 @@ with gr.Blocks(css=CSS) as app:
     with gr.Row():
         with gr.Column(scale=2):
             image_input = gr.File(
-                file_types=[".png", ".jpg", ".jpeg"],
-                file_count="multiple",
-                label="📤 Upload MRI Images",
-                elem_id="image-upload"
+            file_types=[
+                ".png", ".PNG",
+                ".jpg", ".JPG",
+                ".jpeg", ".JPEG",
+                ".bmp", ".BMP",
+                ".gif", ".GIF",
+                ".tiff", ".TIFF",
+                ".webp", ".WEBP"
+            ],
+            file_count="multiple",
+            label="📤 Upload MRI Images",
+            elem_id="image-upload"
             )
         with gr.Column(scale=1, min_width=180):
             predict_button = gr.Button("🚀 Predict", elem_id="predict-btn")
@@ -271,6 +280,9 @@ with gr.Blocks(css=CSS) as app:
         )
 
     clear_button.click(
+
+
+        
         fn=clear_all,
         inputs=[],
         outputs=[
@@ -329,4 +341,6 @@ with gr.Blocks(css=CSS) as app:
     )
 
 
-app.launch()
+if __name__ == "__main__":
+    app.launch()
+    

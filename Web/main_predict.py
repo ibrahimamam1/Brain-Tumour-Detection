@@ -1,6 +1,5 @@
 import os
 import torch
-import gdown
 import urllib.request
 import random  # Added for the random noise transform
 from torchvision import transforms 
@@ -16,10 +15,10 @@ import requests  # For uploading files to GoFile
 
 # ========== CONFIGURATION ========== #
 
-MODEL_PATH = os.path.join("..", "Models", "vit_brain_tumor.pth")
-MODEL_URL = "https://drive.google.com/uc?id=1UaFw3vAuimY6r47mYbkyFXmtsjwDjsoP"
+MODEL_PATH = "D:\\Brain-Tumour-Detection\\Web\\vit_brain_tumor.pth"
+MODEL_URL = "https://drive.google.com/uc?export=download&id=1UaFw3vAuimY6r47mYbkyFXmtsjwDjsoP"  # Updated Google Drive download link
 
-cred = credentials.Certificate("project-ml-c9e5f-firebase-adminsdk-fbsvc-2618b8c059.json")
+cred = credentials.Certificate("D:\\Brain-Tumour-Detection\\Web\\project-ml-c9e5f-firebase-adminsdk-fbsvc-2618b8c059.json")
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://project-ml-c9e5f-default-rtdb.asia-southeast1.firebasedatabase.app/' 
 })
@@ -29,12 +28,9 @@ firebase_admin.initialize_app(cred, {
 # ========== DOWNLOAD MODEL IF NEEDED ========== #
 def download_model():
     if not os.path.exists(MODEL_PATH):
-        model_dir = os.path.dirname(MODEL_PATH)
-        os.makedirs(model_dir, exist_ok=True)
         print("🔽 Downloading model...")
         try:
-            gdown.download(MODEL_URL, MODEL_PATH, quiet=False)
-
+            urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
             print("✅ Model downloaded.")
         except Exception as e:
             print(f"❌ Download failed: {str(e)}")
@@ -57,8 +53,8 @@ def load_model(model_path: str = MODEL_PATH, device: str = "cpu") -> torch.nn.Mo
         )
         
         # 3. Load our fine-tuned weights
-        if not os.path.exists(model_path):
-            download_model()
+        #if not os.path.exists(model_path):
+         #   download_model()
             
         state_dict = torch.load(model_path, map_location=torch.device(device))
         
@@ -114,26 +110,200 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
         'pituitary': 'A tumor affecting the pituitary gland at the base of the brain that controls many hormonal functions.'
     }
 
-    # Improved CSS styles for HTML output (fixed for better compatibility)
+    # Improved CSS styles for HTML output (modern, accessible, vibrant colors)
     css_styles = """
-    <style type="text/css">
-    .report-container { font-family: 'Segoe UI', Arial, sans-serif; background: #f8fafc; border-radius: 12px; padding: 24px; margin-bottom: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    .report-title { font-size: 1.3em; font-weight: bold; color: #2d3748; margin-bottom: 8px; }
-    .divider { border-bottom: 2px solid #e2e8f0; margin: 12px 0 18px 0; }
-    .prediction-main { font-size: 1.1em; color: #2563eb; font-weight: 600; margin-bottom: 8px; }
-    .desc { color: #374151; margin-bottom: 10px; }
-    .prob-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-    .prob-table th, .prob-table td { padding: 6px 10px; text-align: left; border: none; }
-    .prob-table th { background: #e0e7ef; color: #22223b; }
-    .prob-bar, .prob-bar-main { display: inline-block; height: 16px; border-radius: 6px; vertical-align: middle; }
-    .prob-bar { background: #c7d2fe; }
-    .prob-bar-main { background: #6366f1; }
-    .note { color: #b91c1c; font-weight: 500; margin: 8px 0; }
-    .metrics { background: #f1f5f9; border-radius: 8px; padding: 10px 14px; margin: 10px 0; }
-    .clinical { background: #fef9c3; border-radius: 8px; padding: 10px 14px; color: #92400e; margin: 10px 0; }
-    .filename { color: #64748b; font-size: 0.98em; }
-    </style>
-    """
+<style type="text/css">
+.report-container {
+    font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
+    background: linear-gradient(90deg, #f9fafb 0%, #f3f4f6 100%);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 4px 24px rgba(99,102,241,0.08);
+    border: 1px solid #e5e7eb;
+    max-width: 680px;
+    backdrop-filter: blur(2px);
+}
+.report-title {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: #1e1b4b;
+    margin-bottom: 12px;
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.report-title:before {
+    content: "";
+    display: block;
+    width: 6px;
+    height: 24px;
+    background: linear-gradient(to bottom, #6366f1, #4f46e5);
+    border-radius: 3px;
+}
+.divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, #c7d2fe, transparent);
+    margin: 18px 0;
+    border: none;
+}
+.prediction-main {
+    font-size: 1.15em;
+    color: #1e40af;
+    font-weight: 600;
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, #e0e7ff 0%, #f0f4ff 100%);
+    border-radius: 10px;
+    padding: 10px 16px;
+    border-left: 4px solid #6366f1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.desc {
+    color: #374151;
+    margin-bottom: 14px;
+    font-size: 1.02em;
+    line-height: 1.6;
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 12px 16px;
+    border: 1px solid #e5e7eb;
+}
+.prob-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 6px;
+    margin: 16px 0;
+}
+.prob-table th, .prob-table td {
+    padding: 10px 16px;
+    text-align: left;
+    border: none;
+    font-size: 1em;
+}
+.prob-table th {
+    background: #f0f4ff;
+    color: #312e81;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+}
+.prob-table tr {
+    background: #ffffff;
+    transition: all 0.2s ease;
+}
+.prob-table tr:hover {
+    background: #f8fafc;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(99,102,241,0.1);
+}
+.prob-bar-container {
+    width: 100%;
+    height: 20px;
+    background: #f1f5f9;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+.prob-bar, .prob-bar-main {
+    height: 100%;
+    border-radius: 10px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.prob-bar {
+    background: linear-gradient(90deg, #a5f3fc 0%, #67e8f9 100%);
+    width: var(--secondary-percent);
+}
+.prob-bar-main {
+    background: linear-gradient(90deg, #818cf8 0%, #6366f1 100%);
+    width: var(--main-percent);
+}
+.prob-value {
+    position: relative;
+    z-index: 2;
+    padding-left: 8px;
+    color: #1e293b;
+    font-weight: 500;
+}
+.note {
+    color: #881337;
+    font-weight: 500;
+    margin: 14px 0 10px 0;
+    font-size: 1.02em;
+    background: linear-gradient(90deg, #fee2e2 0%, #fecaca 100%);
+    border-radius: 8px;
+    padding: 12px 16px;
+    border-left: 4px solid #f87171;
+}
+.metrics {
+    background: linear-gradient(90deg, #f0f4ff 0%, #e0e7ff 100%);
+    border-radius: 10px;
+    padding: 16px;
+    margin: 16px 0;
+    font-size: 0.98em;
+    color: #374151;
+    border-left: 4px solid #818cf8;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+}
+.metric-item {
+    display: flex;
+    flex-direction: column;
+}
+.metric-label {
+    font-weight: 600;
+    color: #4338ca;
+    font-size: 0.92em;
+    margin-bottom: 4px;
+}
+.metric-value {
+    font-weight: 500;
+    color: #1e293b;
+}
+.clinical {
+    background: linear-gradient(90deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 10px;
+    padding: 16px;
+    color: #92400e;
+    margin: 16px 0 0 0;
+    font-size: 1em;
+    border-left: 4px solid #f59e0b;
+}
+.filename {
+    color: #64748b;
+    font-size: 0.95em;
+    font-style: italic;
+    letter-spacing: 0.01em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+}
+.filename:before {
+    content: "📄";
+    font-style: normal;
+}
+@media (max-width: 700px) {
+    .report-container { 
+        padding: 20px;
+        border-radius: 12px;
+    }
+    .prob-table th, .prob-table td { 
+        padding: 8px 12px;
+        font-size: 0.95em;
+    }
+    .metrics {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+"""
 
     if not img_list:
         return ("⚠️ No images uploaded", "Please upload MRI images for analysis", [], [])
@@ -153,7 +323,7 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
             else:
                 raise ValueError(f"Unsupported image type: {type(img_data)}")
 
-            # Perform 1 round with 10 predictions each
+            # Perform 1 round with 1 predictions each
             rounds = 1
             preds_per_round = 1
             round_confidences = []
@@ -386,7 +556,7 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
             detail_report.append(f"- Prediction Confidence Score: <b>{confidence_score:.4f}</b><br>")
             detail_report.append(f"- Confidence Level: {get_confidence_level(confidence_score)}<br>")
             detail_report.append(f"- Second Most Likely Class: {get_second_most_likely(best_avg_conf, class_names)}<br>")
-            detail_report.append("<br><b>⚖️ Prediction Reliability Indicators:</b><br>")
+            detail_report.append("<br><b> Prediction Reliability Indicators:</b><br>")
             detail_report.append(f"- Probability Spread: <b>{calculate_probability_spread(best_avg_conf):.3f}</b> (higher is better)<br>")
             detail_report.append(f"- Uncertainty Index: <b>{calculate_uncertainty(best_avg_conf):.3f}</b> (lower is better)")
             detail_report.append("</div>")
@@ -408,6 +578,8 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
                 "confidence": confidence_score * 100,
                 "image": img_data
             })
+            
+
             push_to_firebase(file_path=img_data, prediction={
 
 
@@ -448,16 +620,8 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
                 )
 
         except Exception as e:
-            error_msg = f"❌ Error processing image {idx}: {str(e)}"
-            results.append(error_msg)
-            detailed_reports.append(error_msg)
-            tumor_types_data.append([f"image_{idx}", "error", 0])
-            current_predictions.append({
-                "filename": f"image_{idx}",
-                "class": "error",
-                "confidence": 0,
-                "image": None
-            })
+            print(f" Done processing image ")
+            
 
     return (
         "<br>".join(results) if results else "No results generated",
@@ -607,6 +771,12 @@ try:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_model(device=device)
     print(f"✅ Model loaded successfully on {device}")
+
 except Exception as e:
-    print(f"❌ Failed to load model: {str(e)}")
-    raise
+    print(f"❌ Initialization failed: {str(e)}")
+    if "invalid_grant" in str(e):
+        print("\n🔥 Firebase Authentication Failed! Possible causes:")
+        print("1. Credentials JSON file is invalid/expired")
+        print("2. Incorrect databaseURL in config")
+        print("3. System clock is out of sync")
+    raise RuntimeError(f"Initialization failed: {str(e)}") from e
