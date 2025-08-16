@@ -36,6 +36,7 @@ def download_model():
             print(f"❌ Download failed: {str(e)}")
             raise
 
+
 def load_model(model_path: str = MODEL_PATH, device: str = "cpu") -> torch.nn.Module:
     """
     Load the brain tumor classification model with proper error handling
@@ -517,58 +518,7 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
             </style>
             """
 
-            # Detailed HTML report
-            detail_report = [css_styles]
-            detail_report.append(f"<div class='report-container'>")
-            detail_report.append(f"<div class='report-title'>📄 Comprehensive Analysis Report: <span class='filename'>{filename}</span></div>")
-            detail_report.append(f"<div class='divider'></div>")
-            detail_report.append(
-                f"<div class='prediction-main'>🏆 Final Prediction: <b>{predicted_class.upper()}</b> "
-                f"({confidence_score*100:.2f}% confidence) <span style='font-size:0.95em;color:#64748b;'>(Best of 20 rounds)</span></div>"
-            )
-            detail_report.append(f"<div class='filename'>🏅 Best Round: {best_round_idx+1} / {rounds}</div>")
-            detail_report.append(f"<div class='desc'><b>📖 Description:</b> {class_descriptions[predicted_class]}</div>")
-
-            # Probability table
-            detail_report.append("<table class='prob-table'><tr><th>Class</th><th>Probability</th><th>Bar</th></tr>")
-            max_len = 180
-            for i, class_name in enumerate(class_names):
-                percentage = best_avg_conf[i].item() * 100
-                bar_len = int(percentage / 100 * max_len)
-                bar_class = "prob-bar-main" if i == top1_idx else "prob-bar"
-                detail_report.append(
-                    f"<tr><td>{'→' if i == top1_idx else ''} {class_name.title()}</td>"
-                    f"<td>{percentage:5.2f}%</td>"
-                    f"<td><div class='{bar_class}' style='width:{bar_len}px'></div></td></tr>"
-                )
-            detail_report.append("</table>")
-
-            # Optional note on closeness
-            if show_dual_prediction:
-                detail_report.append(
-                    f"<div class='note'>⚠️ The second most likely class is within 15% confidence margin.<br>"
-                    f"- Alternative Diagnosis: <b>{second_class.title()}</b> ({second_confidence*100:.2f}%)</div>"
-                )
-
-            # Analysis metrics
-            detail_report.append("<div class='metrics'>")
-            detail_report.append(f"<b>🔍 Confidence Analysis:</b><br>")
-            detail_report.append(f"- Prediction Confidence Score: <b>{confidence_score:.4f}</b><br>")
-            detail_report.append(f"- Confidence Level: {get_confidence_level(confidence_score)}<br>")
-            detail_report.append(f"- Second Most Likely Class: {get_second_most_likely(best_avg_conf, class_names)}<br>")
-            detail_report.append("<br><b> Prediction Reliability Indicators:</b><br>")
-            detail_report.append(f"- Probability Spread: <b>{calculate_probability_spread(best_avg_conf):.3f}</b> (higher is better)<br>")
-            detail_report.append(f"- Uncertainty Index: <b>{calculate_uncertainty(best_avg_conf):.3f}</b> (lower is better)")
-            detail_report.append("</div>")
-
-            # Clinical considerations
-            detail_report.append("<div class='clinical'>")
-            detail_report.append(f"<b>💡 Clinical Considerations:</b><br>")
-            detail_report.append(get_clinical_considerations(predicted_class, confidence_score).replace('\n', '<br>'))
-            detail_report.append("</div>")
-
-            detail_report.append("</div>")  # Close report-container
-            detailed_reports.append("".join(detail_report))
+            # Detailed report with CSS styles
 
             # Dataframe + preview state
             tumor_types_data.append([filename, predicted_class.title(), round(confidence_score * 100, 2)])
@@ -591,15 +541,9 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
                     f"confidence score: {confidence_score:.4f} |  "
                     f"best round: {best_round_idx + 1} of {rounds} |  "
                     f"best avg confidence: {best_avg_conf.tolist()}   "
-                ),
-
-                "details": (
-                    f"Probability Spread: {calculate_probability_spread(best_avg_conf)}  | | "
-                    f"Uncertainty Index: {calculate_uncertainty(best_avg_conf)}  | | "
-                    f"Confidence Level: {get_confidence_level(confidence_score)}  | | "
-                    f"Second Most Likely: {get_second_most_likely(best_avg_conf, class_names)}  | | "
-                    f"Clinical Considerations: {get_clinical_considerations(predicted_class, confidence_score)} "
                 )
+
+        
                         , "analysis3" : (
                 f"Top-1 Class: {predicted_class.title()} with confidence {confidence_score * 100:.2f}%. | | "
                 f"Top-2 Class: {second_class.title()} with confidence {second_confidence * 100:.2f}%. | | "
@@ -625,7 +569,6 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
 
     return (
         "<br>".join(results) if results else "No results generated",
-        "<br><br>".join(detailed_reports) if detailed_reports else "No detailed reports generated",
         tumor_types_data,
         current_predictions
     )
@@ -681,89 +624,6 @@ def push_to_firebase(file_path, prediction):
     ref = db.reference("predication")
     ref.child(unique_id).set(data)
 
-
-# Helper functions
-def get_confidence_level(score: float) -> str:
-    # Confidence level with structured, clear output
-    if score > 0.95:
-        return (
-            "⭐⭐⭐⭐⭐ Exceptional Confidence (>95%)\n"
-            "- The model is extremely certain about this prediction."
-        )
-    elif score > 0.9:
-        return (
-            "⭐⭐⭐⭐ Very High Confidence (90-95%)\n"
-            "- The prediction is highly reliable."
-        )
-    elif score > 0.75:
-        return (
-            "⭐⭐⭐ High Confidence (75-90%)\n"
-            "- The model is confident, but clinical review is still advised."
-        )
-    elif score > 0.6:
-        return (
-            "⭐⭐ Moderate Confidence (60-75%)\n"
-            "- The result is moderately reliable. Consider additional review."
-        )
-    elif score > 0.4:
-        return (
-            "⭐ Low Confidence (40-60%)\n"
-            "- The prediction is uncertain. Manual review is recommended."
-        )
-    else:
-        return (
-            "❓ Very Low Confidence (<40%)\n"
-            "- The model is unsure. Strongly consider manual review and further diagnostics."
-        )
-
-def get_second_most_likely(probs, classes) -> str:
-    # Sort by probability, descending
-    sorted_probs = sorted(zip(probs, classes), key=lambda x: x[0], reverse=True)
-    return (
-        f"Second Most Likely: {sorted_probs[1][1].title()} "
-        f"({sorted_probs[1][0].item()*100:.2f}%)"
-    )
-
-def calculate_probability_spread(probs) -> float:
-    sorted_probs = torch.sort(probs, descending=True).values
-    return (sorted_probs[0] - sorted_probs[1]).item()
-
-def calculate_uncertainty(probs) -> float:
-    # Entropy: -sum(p*log(p)), add epsilon to avoid log(0)
-    return float(-torch.sum(probs * torch.log(probs + 1e-10)).item())
-
-def get_clinical_considerations(pred_class, confidence) -> str:
-    considerations = {
-        'glioma': [
-            "• Gliomas can be aggressive and require prompt attention.",
-            "• Recommend follow-up with neurologist and MRI spectroscopy.",
-            "• Consider grading evaluation (low-grade vs high-grade)."
-        ],
-        'meningioma': [
-            "• Most meningiomas are benign (WHO Grade I).",
-            "• Recommend monitoring growth rate if asymptomatic.",
-            "• Surgical resection may be indicated for symptomatic cases."
-        ],
-        'notumor': [
-            "• No immediate intervention needed.",
-            "• Recommend routine follow-up if clinically indicated.",
-            "• Consider alternative diagnoses if symptoms persist."
-        ],
-        'pituitary': [
-            "• Endocrine evaluation recommended.",
-            "• Assess for hormonal hypersecretion syndromes.",
-            "• Monitor for visual field defects if macroadenoma."
-        ]
-    }
-    base = "CLINICAL CONSIDERATIONS:\n" + "\n".join(considerations.get(pred_class, []))
-    if confidence < 0.7:
-        base += (
-            "\n\n⚠️ NOTE: Due to lower confidence in prediction, consider:\n"
-            "• Additional imaging (contrast-enhanced MRI).\n"
-            "• Second opinion from neuroradiologist.\n"
-            "• Clinical correlation with patient symptoms."
-        )
-    return base
 
 
 # Initialize model

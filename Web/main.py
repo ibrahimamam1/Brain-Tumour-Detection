@@ -244,8 +244,6 @@ with gr.Blocks(css=CSS) as app:
     with gr.Tabs():
         with gr.TabItem("📋 Summary"):
             summary_output = gr.HTML(elem_id="summary-md")
-        with gr.TabItem("📄 Detailed Reports"):
-            detailed_report_output = gr.HTML(elem_id="detailed-html")
         with gr.TabItem("🧬 Tumor Types"):
             tumor_types_output = gr.Dataframe(
                 headers=["Image", "Prediction", "Confidence %"],
@@ -280,14 +278,10 @@ with gr.Blocks(css=CSS) as app:
         )
 
     clear_button.click(
-
-
-        
         fn=clear_all,
         inputs=[],
         outputs=[
             summary_output,
-            detailed_report_output,
             tumor_types_output,
             current_predictions,
             preview_image,
@@ -328,7 +322,7 @@ with gr.Blocks(css=CSS) as app:
     predict_button.click(
         fn=predict_brain_tumor_batch,
         inputs=image_input,
-        outputs=[summary_output, detailed_report_output, tumor_types_output, current_predictions]
+        outputs=[summary_output, tumor_types_output, current_predictions]
     )
 
     tumor_types_output.select(

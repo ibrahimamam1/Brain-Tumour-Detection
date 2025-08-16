@@ -1,0 +1,17 @@
+Delete the Detailed Report Section – keep the design concise. (over it done about deatils)
+
+Summary Page – instead of showing only the top prediction, display the top 3 predicted tumour types with their probabilities.
+
+Confidence Bar – add a horizontal bar visualization below the predictions to show confidence levels.
+
+Attention Map – show the input image alongside an attention/heatmap highlighting the suspected tumour region.
+
+Professional Style – update the layout, colors, and fonts to look more clean and clinical (medical-report-like).
+
+Tumour Types Section – add educational content for each tumour type:
+
+Short description of the tumour
+
+Image examples
+
+Statistics on prevalence/commonness
