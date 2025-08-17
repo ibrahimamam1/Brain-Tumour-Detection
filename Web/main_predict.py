@@ -93,188 +93,133 @@ import io
 import torch
 
 from utils.css_loader import get_css_styles
+from assets.templates.html_templates import generate_batch_overview, generate_detailed_report
 
-from templates.html_templates import (
-    generate_summary_result,
-    generate_detailed_report_header,
-    generate_description_section,
-    generate_probability_table,
-    generate_dual_prediction_note,
-    generate_metrics_section,
-    generate_clinical_section,
-    close_report_container
-)
+CLASS_NAMES = ['glioma', 'meningioma', 'notumor', 'pituitary']
+CLASS_DESCRIPTIONS = {
+    'glioma': 'Tumor arising from glial cells in brain/spinal cord.',
+    'meningioma': 'Tumor from meninges surrounding brain/spinal cord.',
+    'notumor': 'No tumor detected.',
+    'pituitary': 'Tumor affecting the pituitary gland.',
+}
 
-def predict_brain_tumor_batch(img_list: list, css_file_path: str = None) -> Tuple[str, str, List[List], List[dict]]:
-    """
-    Predict brain tumors from a batch of images
+def predict_image(img: Image.Image) -> Tuple[str, float, List[Tuple[float, str]]]:
+    """Run model on single image and return top prediction + confidences"""
+    input_tensor = transform(img).unsqueeze(0)
+    with torch.no_grad():
+        output = model(input_tensor)
+        probs = torch.nn.functional.softmax(output, dim=1)[0]
+
+    sorted_vals, sorted_idx = torch.topk(probs, len(CLASS_NAMES))
+    confidences = [(v.item(), CLASS_NAMES[i]) for v,i in zip(sorted_vals, sorted_idx)]
+    return confidences[0][1], confidences[0][0], confidences
+
+
+def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], List[dict]]:
     
-    Args:
-        img_list (list): List of images to analyze
-        css_file_path (str, optional): Path to external CSS file
-        
-    Returns:
-        Tuple containing results, detailed reports, tumor types data, and current predictions
-    """
-    results = []
-    detailed_reports = []
-    tumor_types_data = []    # For dataframe: list of rows [image, prediction, confidence %]
-    current_predictions = [] # For state, detailed info per image
-
-    class_names = ['glioma', 'meningioma', 'notumor', 'pituitary']
-    class_descriptions = {
-        'glioma': 'A type of tumor that occurs in the brain and spinal cord, arising from glial cells.',
-        'meningioma': 'A tumor that arises from the meninges, the membranes surrounding the brain and spinal cord.',
-        'notumor': 'No tumor detected in the brain MRI scan.',
-        'pituitary': 'A tumor affecting the pituitary gland at the base of the brain that controls many hormonal functions.'
-    }
-
-    # Load CSS styles dynamically
-    css_styles = get_css_styles(css_file_path)
-
+    results, df_data, state = [], [], []
+    
     if not img_list:
-        return ("⚠️ No images uploaded", "Please upload MRI images for analysis", [], [])
-
-    for idx, img_data in enumerate(img_list, start=1):
+        return ("<div>⚠️ No images uploaded</div>", "", [], [])
+    
+    # Store original image data for detailed view
+    image_data_store = {}
+    
+    for idx, img_data in enumerate(img_list, 1):
         try:
-            # Load image
             if isinstance(img_data, str):
                 img = Image.open(img_data).convert("RGB")
-                filename = img_data.split("/")[-1]
+                fname = img_data.split("/")[-1]
             elif hasattr(img_data, 'read'):
                 img = Image.open(img_data).convert("RGB")
-                filename = getattr(img_data, 'name', f"image_{idx}")
+                fname = getattr(img_data, 'name', f"image_{idx}")
             elif isinstance(img_data, bytes):
                 img = Image.open(io.BytesIO(img_data)).convert("RGB")
-                filename = f"image_{idx}"
+                fname = f"image_{idx}"
             else:
-                raise ValueError(f"Unsupported image type: {type(img_data)}")
-
-            # Perform prediction rounds
-            rounds = 1
-            preds_per_round = 1
-            round_confidences = []
-
-            for r in range(rounds):
-                class_conf_sum = torch.zeros(len(class_names))
-                for _ in range(preds_per_round):
-                    input_tensor = transform(img).unsqueeze(0)
-                    with torch.no_grad():
-                        output = model(input_tensor)
-                        probabilities = torch.nn.functional.softmax(output, dim=1)[0]
-                    class_conf_sum += probabilities
-                avg_confidence = class_conf_sum / preds_per_round
-                round_confidences.append(avg_confidence)
-
-            # Pick best round based on highest max confidence
-            best_round_idx = max(range(rounds), key=lambda i: round_confidences[i].max().item())
-            best_avg_conf = round_confidences[best_round_idx]
-
-            # Determine top 2 classes
-            sorted_confidences = torch.topk(best_avg_conf, 2)
-            top1_idx, top2_idx = sorted_confidences.indices.tolist()
-            top1_conf, top2_conf = sorted_confidences.values.tolist()
-
-            predicted_class = class_names[top1_idx]
-            confidence_score = top1_conf
-            second_class = class_names[top2_idx]
-            second_confidence = top2_conf
-
-            # Check if the difference between top 2 is ≤ 15%
-            diff_percent = (top1_conf - top2_conf) * 100
-            show_dual_prediction = diff_percent <= 15.0
-
-            # Generate summary result using template
-            summary_html = generate_summary_result(
-                filename, predicted_class, confidence_score,
-                second_class, second_confidence, show_dual_prediction
-            )
-            results.append(summary_html)
-
-            # Generate detailed HTML report using templates
-            detail_report = [css_styles]
+                raise ValueError("Unsupported input type")
             
-            # Header section
-            detail_report.append(generate_detailed_report_header(
-                filename, predicted_class, confidence_score, best_round_idx, rounds
-            ))
+            # Store image for detailed view
+            image_data_store[idx-1] = img
             
-            # Description section
-            detail_report.append(generate_description_section(predicted_class, class_descriptions))
-            
-            # Probability table
-            detail_report.append(generate_probability_table(class_names, best_avg_conf, top1_idx))
-            
-            # Optional dual prediction note
-            if show_dual_prediction:
-                detail_report.append(generate_dual_prediction_note(second_class, second_confidence))
-            
-            # Metrics section
-            detail_report.append(generate_metrics_section(
-                confidence_score, best_avg_conf, class_names,
-                get_confidence_level, get_second_most_likely,
-                calculate_probability_spread, calculate_uncertainty
-            ))
-            
-            # Clinical considerations
-            detail_report.append(generate_clinical_section(
-                predicted_class, confidence_score, get_clinical_considerations
-            ))
-            
-            # Close container
-            detail_report.append(close_report_container())
-            
-            detailed_reports.append("".join(detail_report))
-
-            # Dataframe + preview state
-            tumor_types_data.append([filename, predicted_class.title(), round(confidence_score * 100, 2)])
-            current_predictions.append({
-                "filename": filename,
-                "class": predicted_class,
-                "confidence": confidence_score * 100,
-                "image": img_data
+            pred_class, conf, all_conf = predict_image(img)
+            df_data.append([fname, pred_class, f"{conf*100:.1f}%"])
+            state.append({
+                "filename": fname,
+                "predicted_class": pred_class,
+                "confidence": conf,
+                "all_predictions": all_conf,
+                "description": CLASS_DESCRIPTIONS[pred_class],
+                "image_idx": idx-1
             })
-
-            # Push to Firebase (keeping original functionality)
-            push_to_firebase(file_path=img_data, prediction={
-                "filename": filename.split("\\")[-1],
-                "extra": (
-                    f"class title: {predicted_class.title()}| "
-                    f"class descriptions: {class_descriptions[predicted_class]} |  "
-                    f"confidence score: {confidence_score:.4f} |  "
-                    f"best round: {best_round_idx + 1} of {rounds} |  "
-                    f"best avg confidence: {best_avg_conf.tolist()}   "
-                ),
-                "details": (
-                    f"Probability Spread: {calculate_probability_spread(best_avg_conf)}  | | "
-                    f"Uncertainty Index: {calculate_uncertainty(best_avg_conf)}  | | "
-                    f"Confidence Level: {get_confidence_level(confidence_score)}  | | "
-                    f"Second Most Likely: {get_second_most_likely(best_avg_conf, class_names)}  | | "
-                    f"Clinical Considerations: {get_clinical_considerations(predicted_class, confidence_score)} "
-                ),
-                "analysis3": (
-                    f"Top-1 Class: {predicted_class.title()} with confidence {confidence_score * 100:.2f}%. | | "
-                    f"Top-2 Class: {second_class.title()} with confidence {second_confidence * 100:.2f}%. | | "
-                    f"Prediction confidence across classes: {best_avg_conf.tolist()}. | | "
-                    f"Best result obtained in round {best_round_idx + 1} of {rounds}. | | "
-                ),
-                "analysis2": (
-                    f"Top Prediction: {predicted_class.title()} ({confidence_score * 100:.2f}%) | |  "
-                    f"Second Prediction: {second_class.title()} ({second_confidence * 100:.2f}%) | | "
-                    f"Best Round: {best_round_idx + 1} of {rounds} |  |  "
-                    f"Avg Confidence Per Class: {best_avg_conf.tolist()}  "
-                )
-            })
-
+            
         except Exception as e:
-            print(f"Done processing image: {e}")
+            fname = f"image_{idx}"
+            df_data.append([fname, "Error", "0%"])
+            state.append({
+                "filename": fname,
+                "predicted_class": "Error",
+                "confidence": 0,
+                "all_predictions": [],
+                "description": str(e),
+                "image_idx": idx-1
+            })
+    
+    batch_html = generate_batch_overview(state)
+    
+    # Generate detailed view for first image by default
+    detailed_html = ""
+    if state:
+        detailed_html = generate_detailed_report(
+            state[0], 
+            state,  # Pass all predictions for navigation
+            0,      # Current index
+            image_data_store.get(0)
+        )
+    
+    return batch_html, detailed_html, df_data, state
 
-    return (
-        "<br>".join(results) if results else "No results generated",
-        "<br><br>".join(detailed_reports) if detailed_reports else "No detailed reports generated",
-        tumor_types_data,
-        current_predictions
-    )
+# tumor_types_data.append([filename, predicted_class.title(), round(confidence_score * 100, 2)])
+           # current_predictions.append({
+           #     "filename": filename,
+           #     "class": predicted_class,
+           #     "confidence": confidence_score * 100,
+           #     "image": img_data
+           # })
+#
+           # # Push to Firebase (keeping original functionality)
+           # push_to_firebase(file_path=img_data, prediction={
+           #     "filename": filename.split("\\")[-1],
+           #     "extra": (
+           #         f"class title: {predicted_class.title()}| "
+           #         f"class descriptions: {class_descriptions[predicted_class]} |  "
+           #         f"confidence score: {confidence_score:.4f} |  "
+           #         f"best round: {best_round_idx + 1} of {rounds} |  "
+           #         f"best avg confidence: {best_avg_conf.tolist()}   "
+           #     ),
+           #     "details": (
+           #         f"Probability Spread: {calculate_probability_spread(best_avg_conf)}  | | "
+           #         f"Uncertainty Index: {calculate_uncertainty(best_avg_conf)}  | | "
+           #         f"Confidence Level: {get_confidence_level(confidence_score)}  | | "
+           #         f"Second Most Likely: {get_second_most_likely(best_avg_conf, class_names)}  | | "
+           #         f"Clinical Considerations: {get_clinical_considerations(predicted_class, confidence_score)} "
+           #     ),
+           #     "analysis3": (
+           #         f"Top-1 Class: {predicted_class.title()} with confidence {confidence_score * 100:.2f}%. | | "
+           #         f"Top-2 Class: {second_class.title()} with confidence {second_confidence * 100:.2f}%. | | "
+           #         f"Prediction confidence across classes: {best_avg_conf.tolist()}. | | "
+           #         f"Best result obtained in round {best_round_idx + 1} of {rounds}. | | "
+           #     ),
+           #     "analysis2": (
+           #         f"Top Prediction: {predicted_class.title()} ({confidence_score * 100:.2f}%) | |  "
+           #         f"Second Prediction: {second_class.title()} ({second_confidence * 100:.2f}%) | | "
+           #         f"Best Round: {best_round_idx + 1} of {rounds} |  |  "
+           #         f"Avg Confidence Per Class: {best_avg_conf.tolist()}  "
+           #     )
+           # })
+
+       # except Exception as e:
+       #     print(f"Done processing image: {e}")
 
 PIXELDRAIN_API_KEY = "91d780db-af6e-4cc9-b3f2-1f80ba77817c"  # Replace with your Pixeldrain API key
 import base64    
@@ -292,18 +237,19 @@ def upload_file_gofile(file_path: str) -> str:
         token = base64.b64encode(f":{PIXELDRAIN_API_KEY}".encode()).decode()
         headers["Authorization"] = f"Basic {token}"
     
-    with open(file_path, "rb") as f:
-        resp = requests.put(url, data=f, headers=headers, timeout=60)
+    #with open(file_path, "rb") as f:
+        #resp = requests.put(url, data=f, headers=headers, timeout=60)
     
-    if resp.status_code in (200, 201):
-        data = resp.json()
-        file_id = data.get("id") or data.get("data", {}).get("id")
-        print(f"File uploaded successfully: {file_id}")
-        if not file_id:
-            raise Exception(f"Unexpected response: {data}")
-        return f"https://pixeldrain.com/api/file/{file_id}"
-    else:
-        raise Exception(f"Upload failed {resp.status_code}: {resp.text}")
+   # if resp.status_code in (200, 201):
+   #     data = resp.json()
+   #     file_id = data.get("id") or data.get("data", {}).get("id")
+   #     print(f"File uploaded successfully: {file_id}")
+   #     if not file_id:
+   #         raise Exception(f"Unexpected response: {data}")
+   #     return f"https://pixeldrain.com/api/file/{file_id}"
+   # else:
+   #     raise Exception(f"Upload failed {resp.status_code}: {resp.text}")
+
 
 
 def push_to_firebase(file_path, prediction):

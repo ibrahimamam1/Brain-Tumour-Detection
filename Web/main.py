@@ -25,7 +25,7 @@ class GradioApp:
     
     def _load_css(self):
         """Load CSS from external file"""
-        css_path = self.assets_dir / "styles.css"
+        css_path = self.assets_dir / "styles/style.css"
         return self._load_file(css_path)
     
     def _load_templates(self):
@@ -179,7 +179,8 @@ class GradioApp:
 # Usage
 if __name__ == "__main__":
     # Create the app instance
-    brain_tumor_app = GradioApp(assets_dir="assets")
+    brain_tumor_app = GradioApp(assets_dir="Web/assets")
+    
     
     # Create and launch the interface
     app = brain_tumor_app.create_interface()
