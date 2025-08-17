@@ -22,10 +22,10 @@ def severity_icon(predicted_class: str) -> str:
     }
     return mapping.get(predicted_class.lower(), '⚪')
 def generate_result_card(pred: dict, index: int) -> str:
-    """Generate result card with click handler to switch to detailed tab"""
+    """Generate result card with data attributes instead of onclick"""
     return f"""
     <div class="result-card {severity_class(pred['predicted_class'])}" 
-         onclick="switchToDetailedView({index})" data-index="{index}">
+         data-index="{index}" data-action="switch-to-detailed">
         <div class="card-header">
             <span>{severity_icon(pred['predicted_class'])}</span>
             <span>{pred['filename']}</span>
@@ -39,11 +39,14 @@ def generate_result_card(pred: dict, index: int) -> str:
 
 
 def generate_batch_overview(predictions: list) -> str:
-    """Generate batch overview with enhanced interactivity"""
+    """Generate batch overview with event delegation"""
     total = len(predictions)
     tumors = sum(1 for p in predictions if p['predicted_class'] != 'notumor')
     normals = total - tumors
     cards = "".join(generate_result_card(p, i) for i,p in enumerate(predictions))
+    
+    # Embed predictions data in a hidden div
+    predictions_json = str(predictions).replace("'", '"')
     
     return f"""
     <div class="batch-results-overview">
@@ -63,40 +66,8 @@ def generate_batch_overview(predictions: list) -> str:
         </div>
         <div class="results-grid">{cards}</div>
         
-        <script>
-        // Store predictions data globally for cross-tab communication
-        window.currentPredictions = {predictions};
-        window.currentSelectedIndex = 0;
-        
-        function switchToDetailedView(index) {{
-            // Update global selection
-            window.currentSelectedIndex = index;
-            console.log("switch to detailed for " + index); 
-            // Switch to detailed tab (Gradio specific)
-            const detailedTab = document.querySelector('button[data-testid="tab-detailed-analysis"]') || 
-                               document.querySelector('button:contains("Detailed Analysis")') ||
-                               document.querySelectorAll('.tab-nav button')[1]; // fallback to second tab
-            
-            if (detailedTab) {{
-                detailedTab.click();
-            }}
-            
-            // Trigger update of detailed view
-            setTimeout(() => {{
-                if (window.updateDetailedView) {{
-                    window.updateDetailedView(index);
-                }}
-            }}, 100);
-        }}
-        
-        function showDetailedResult(index) {{
-            const cards = document.querySelectorAll('.result-card');
-            cards.forEach(c => c.classList.remove('selected'));
-            if (cards[index]) {{
-                cards[index].classList.add('selected');
-            }}
-        }}
-        </script>
+        <!-- Hidden data storage -->
+        <div id="predictions-data" style="display: none;">{predictions_json}</div>
         
         <style>
         .result-card {{
@@ -116,18 +87,80 @@ def generate_batch_overview(predictions: list) -> str:
         }}
         </style>
     </div>
+    
+    <script>
+    // Use setTimeout to ensure this runs after the DOM is ready
+    setTimeout(function() {{
+        // Set up event delegation for result cards
+        document.addEventListener('click', function(e) {{
+            const card = e.target.closest('[data-action="switch-to-detailed"]');
+            if (card) {{
+                const index = parseInt(card.getAttribute('data-index'));
+                
+                // Store selection globally
+                window.selectedPredictionIndex = index;
+                localStorage.setItem('selectedPredictionIndex', index);
+                
+                // Visual feedback
+                document.querySelectorAll('.result-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                
+                // Try to switch tabs
+                switchToDetailedTabMultiple();
+            }}
+        }});
+        
+        // Store predictions data globally with multiple fallbacks
+        try {{
+            const dataEl = document.getElementById('predictions-data');
+            if (dataEl) {{
+                window.currentPredictions = JSON.parse(dataEl.textContent);
+            }}
+        }} catch (e) {{
+            console.log('Could not parse predictions data');
+        }}
+        
+        // Multiple strategies to find and click detailed tab
+        function switchToDetailedTabMultiple() {{
+            const strategies = [
+                () => document.querySelector('button[data-testid*="detailed"]'),
+                () => document.querySelector('button[data-testid*="analysis"]'),
+                () => document.querySelector('button:nth-child(2)[role="tab"]'),
+                () => document.querySelectorAll('button[role="tab"]')[1],
+                () => document.querySelectorAll('.tab-nav button')[1],
+                () => Array.from(document.querySelectorAll('button')).find(b => b.textContent.toLowerCase().includes('detailed')),
+                () => Array.from(document.querySelectorAll('button')).find(b => b.textContent.toLowerCase().includes('analysis'))
+            ];
+            
+            for (let strategy of strategies) {{
+                try {{
+                    const tab = strategy();
+                    if (tab) {{
+                        tab.click();
+                        console.log('Successfully clicked detailed tab');
+                        return;
+                    }}
+                }} catch (e) {{
+                    continue;
+                }}
+            }}
+            
+            console.warn('Could not find detailed tab');
+        }}
+    }}, 500);
+    </script>
     """
 
 
 def generate_navigation_panel(predictions: list, current_index: int = 0) -> str:
-    """Generate navigation panel for detailed view"""
+    """Generate navigation panel with data attributes"""
     nav_items = ""
     for i, pred in enumerate(predictions):
         is_active = i == current_index
         active_class = "nav-item-active" if is_active else ""
         
         nav_items += f"""
-        <div class="nav-item {active_class}" onclick="selectPrediction({i})" data-index="{i}">
+        <div class="nav-item {active_class}" data-index="{i}" data-action="select-prediction">
             <div class="nav-item-icon">{severity_icon(pred['predicted_class'])}</div>
             <div class="nav-item-content">
                 <div class="nav-item-name">{pred['filename']}</div>
@@ -148,7 +181,7 @@ def generate_navigation_panel(predictions: list, current_index: int = 0) -> str:
 
 
 def generate_detailed_report(prediction: dict, predictions_list: list, current_index: int = 0, img_data=None) -> str:
-    """Generate detailed report with navigation panel"""
+    """Generate detailed report with event delegation"""
     
     # Generate probability bars for all classes
     prob_bars = ""
@@ -193,7 +226,7 @@ def generate_detailed_report(prediction: dict, predictions_list: list, current_i
                         <img src="data:image/png;base64,{img_str}" 
                              alt="{prediction['filename']}" 
                              class="medical-image" 
-                             onclick="zoomImage(this)">
+                             data-action="zoom-image">
                         <div class="zoom-hint">Click to zoom</div>
                     </div>
                 </div>
@@ -219,6 +252,9 @@ def generate_detailed_report(prediction: dict, predictions_list: list, current_i
     
     # Navigation panel
     nav_panel = generate_navigation_panel(predictions_list, current_index)
+    
+    # Embed all predictions data
+    predictions_json = str(predictions_list).replace("'", '"')
     
     # Generate the complete detailed report
     report_html = f"""
@@ -270,21 +306,59 @@ def generate_detailed_report(prediction: dict, predictions_list: list, current_i
         </div>
         
         <!-- Image zoom modal -->
-        <div id="imageModal" class="image-modal" onclick="closeModal()">
-            <span class="modal-close">&times;</span>
+        <div id="imageModal" class="image-modal" data-action="close-modal">
+            <span class="modal-close" data-action="close-modal">&times;</span>
             <img class="modal-content" id="modalImage">
             <div class="modal-caption" id="modalCaption"></div>
         </div>
         
-        <script>
-        // Store all predictions data and images
-        window.allPredictions = {predictions_list};
-        window.currentDetailedIndex = {current_index};
-        window.imageDataStore = {{}};
+        <!-- Hidden data storage -->
+        <div id="detailed-predictions-data" style="display: none;">{predictions_json}</div>
+    </div>
+    
+    <script>
+    setTimeout(function() {{
+        // Load predictions data
+        try {{
+            const dataEl = document.getElementById('detailed-predictions-data');
+            if (dataEl) {{
+                window.allPredictions = JSON.parse(dataEl.textContent);
+                window.currentDetailedIndex = {current_index};
+            }}
+        }} catch (e) {{
+            console.log('Could not parse detailed predictions data');
+        }}
         
-        // Function to update detailed view smoothly
-        window.updateDetailedView = function(index) {{
-            if (index < 0 || index >= window.allPredictions.length) return;
+        // Set up event delegation for detailed view
+        document.addEventListener('click', function(e) {{
+            const target = e.target;
+            const action = target.getAttribute('data-action') || target.closest('[data-action]')?.getAttribute('data-action');
+            
+            switch(action) {{
+                case 'select-prediction':
+                    const index = parseInt(target.closest('[data-index]').getAttribute('data-index'));
+                    updateDetailedView(index);
+                    break;
+                    
+                case 'zoom-image':
+                    zoomImage(target);
+                    break;
+                    
+                case 'close-modal':
+                    closeModal();
+                    break;
+            }}
+        }});
+        
+        // Check for pending selection from overview
+        const pendingIndex = localStorage.getItem('selectedPredictionIndex');
+        if (pendingIndex !== null) {{
+            updateDetailedView(parseInt(pendingIndex));
+            localStorage.removeItem('selectedPredictionIndex');
+        }}
+        
+        function updateDetailedView(index) {{
+            if (!window.allPredictions || index < 0 || index >= window.allPredictions.length) return;
             
             const prediction = window.allPredictions[index];
             window.currentDetailedIndex = index;
@@ -297,19 +371,29 @@ def generate_detailed_report(prediction: dict, predictions_list: list, current_i
             }}
             
             setTimeout(() => {{
-                // Update header info
-                document.getElementById('report-title').innerHTML = `${{getSeverityIcon(prediction.predicted_class)}} Detailed Analysis`;
-                document.getElementById('report-filename').textContent = prediction.filename;
-                document.getElementById('report-prediction').textContent = prediction.predicted_class.charAt(0).toUpperCase() + prediction.predicted_class.slice(1);
-                document.getElementById('report-prediction').className = getSeverityClass(prediction.predicted_class);
-                document.getElementById('report-confidence').textContent = `${{(prediction.confidence * 100).toFixed(1)}}%`;
+                // Update header info safely
+                const titleEl = document.getElementById('report-title');
+                const filenameEl = document.getElementById('report-filename');
+                const predictionEl = document.getElementById('report-prediction');
+                const confidenceEl = document.getElementById('report-confidence');
+                
+                if (titleEl) titleEl.innerHTML = getSeverityIcon(prediction.predicted_class) + ' Detailed Analysis';
+                if (filenameEl) filenameEl.textContent = prediction.filename;
+                if (predictionEl) {{
+                    predictionEl.textContent = prediction.predicted_class.charAt(0).toUpperCase() + prediction.predicted_class.slice(1);
+                    predictionEl.className = getSeverityClass(prediction.predicted_class);
+                }}
+                if (confidenceEl) confidenceEl.textContent = (prediction.confidence * 100).toFixed(1) + '%';
                 
                 // Update probabilities
-                updateProbabilityBars(prediction.all_predictions);
+                updateProbabilityBars(prediction.all_predictions, prediction.predicted_class);
                 
                 // Update description
-                document.getElementById('description-content').innerHTML = `<p>${{prediction.description}}</p>`;
-                document.getElementById('description-content').className = `description-content ${{getSeverityClass(prediction.predicted_class)}}`;
+                const descEl = document.getElementById('description-content');
+                if (descEl) {{
+                    descEl.innerHTML = '<p>' + prediction.description + '</p>';
+                    descEl.className = 'description-content ' + getSeverityClass(prediction.predicted_class);
+                }}
                 
                 // Update navigation
                 updateNavigationPanel(index);
@@ -320,32 +404,30 @@ def generate_detailed_report(prediction: dict, predictions_list: list, current_i
                     mainContent.style.transform = 'translateY(0)';
                 }}
             }}, 200);
-        }};
-        
-        function selectPrediction(index) {{
-            window.updateDetailedView(index);
         }}
         
-        function updateProbabilityBars(predictions) {{
+        function updateProbabilityBars(predictions, currentPrediction) {{
             const container = document.getElementById('probabilities-container');
+            if (!container) return;
+            
             let barsHtml = '';
             
-            predictions.forEach(([prob, className]) => {{
+            predictions.forEach(function(pred) {{
+                const prob = pred[0];
+                const className = pred[1];
                 const percentage = prob * 100;
                 const barClass = getSeverityClass(className);
-                const isPredicted = className === window.allPredictions[window.currentDetailedIndex].predicted_class;
+                const isPredicted = className === currentPrediction;
                 
-                barsHtml += `
-                <div class="probability-bar ${{isPredicted ? 'predicted-class' : ''}}">
-                    <div class="prob-label">
-                        <span class="class-name">${{className.charAt(0).toUpperCase() + className.slice(1)}}</span>
-                        <span class="prob-value">${{percentage.toFixed(1)}}%</span>
-                    </div>
-                    <div class="prob-bar-container">
-                        <div class="prob-bar-fill ${{barClass}}" style="width: ${{percentage}}%"></div>
-                    </div>
-                </div>
-                `;
+                barsHtml += '<div class="probability-bar ' + (isPredicted ? 'predicted-class' : '') + '">' +
+                    '<div class="prob-label">' +
+                        '<span class="class-name">' + className.charAt(0).toUpperCase() + className.slice(1) + '</span>' +
+                        '<span class="prob-value">' + percentage.toFixed(1) + '%</span>' +
+                    '</div>' +
+                    '<div class="prob-bar-container">' +
+                        '<div class="prob-bar-fill ' + barClass + '" style="width: ' + percentage + '%"></div>' +
+                    '</div>' +
+                '</div>';
             }});
             
             container.innerHTML = barsHtml;
@@ -353,7 +435,7 @@ def generate_detailed_report(prediction: dict, predictions_list: list, current_i
         
         function updateNavigationPanel(activeIndex) {{
             const navItems = document.querySelectorAll('.nav-item');
-            navItems.forEach((item, index) => {{
+            navItems.forEach(function(item, index) {{
                 if (index === activeIndex) {{
                     item.classList.add('nav-item-active');
                 }} else {{
@@ -387,21 +469,19 @@ def generate_detailed_report(prediction: dict, predictions_list: list, current_i
             const modalImg = document.getElementById('modalImage');
             const caption = document.getElementById('modalCaption');
             
-            modal.style.display = 'block';
-            modalImg.src = img.src;
-            caption.innerHTML = img.alt;
+            if (modal && modalImg && caption) {{
+                modal.style.display = 'block';
+                modalImg.src = img.src;
+                caption.innerHTML = img.alt;
+            }}
         }}
         
         function closeModal() {{
-            document.getElementById('imageModal').style.display = 'none';
-        }}
-        
-        // Initialize on load
-        document.addEventListener('DOMContentLoaded', function() {{
-            if (window.currentSelectedIndex !== undefined) {{
-                window.updateDetailedView(window.currentSelectedIndex);
+            const modal = document.getElementById('imageModal');
+            if (modal) {{
+                modal.style.display = 'none';
             }}
-        }});
+        }}
         
         // Close modal with escape key
         document.addEventListener('keydown', function(event) {{
@@ -409,8 +489,9 @@ def generate_detailed_report(prediction: dict, predictions_list: list, current_i
                 closeModal();
             }}
         }});
-        </script>
-    </div>
+    }}, 500);
+    </script>
     """
     
     return report_html
+

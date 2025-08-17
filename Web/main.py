@@ -179,7 +179,7 @@ class GradioApp:
 # Usage
 if __name__ == "__main__":
     # Create the app instance
-    brain_tumor_app = GradioApp(assets_dir="Web/assets")
+    brain_tumor_app = GradioApp(assets_dir="Web/assets/")
     
     
     # Create and launch the interface

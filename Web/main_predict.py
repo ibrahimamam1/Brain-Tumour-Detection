@@ -94,7 +94,7 @@ import torch
 
 from utils.css_loader import get_css_styles
 from assets.templates.html_templates import generate_batch_overview, generate_detailed_report
-
+from attention_map import ViTAttentionMap, get_overlaid_image
 CLASS_NAMES = ['glioma', 'meningioma', 'notumor', 'pituitary']
 CLASS_DESCRIPTIONS = {
     'glioma': 'Tumor arising from glial cells in brain/spinal cord.',
@@ -116,15 +116,17 @@ def predict_image(img: Image.Image) -> Tuple[str, float, List[Tuple[float, str]]
 
 
 def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], List[dict]]:
-    
     results, df_data, state = [], [], []
-    
     if not img_list:
         return ("<div>⚠️ No images uploaded</div>", "", [], [])
-    
+
     # Store original image data for detailed view
     image_data_store = {}
-    
+    overlaid_images_store = {}
+    model = load_model()
+    vit_attn = ViTAttentionMap(model)
+
+
     for idx, img_data in enumerate(img_list, 1):
         try:
             if isinstance(img_data, str):
@@ -138,11 +140,23 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
                 fname = f"image_{idx}"
             else:
                 raise ValueError("Unsupported input type")
-            
-            # Store image for detailed view
-            image_data_store[idx-1] = img
-            
+
+            # Store original image temporarily
+            original_img = img.copy()  # Keep a copy if you want to preserve original
+
             pred_class, conf, all_conf = predict_image(img)
+
+            # Preprocess for model input
+            input_tensor = transform(img).unsqueeze(0).to(device)
+            # Compute attention map
+            attn_map = vit_attn(input_tensor)
+
+            # Apply overlay
+            overlaid_img = get_overlaid_image(original_img, attn_map)
+
+            image_data_store[idx-1] = original_img
+            overlaid_images_store[idx-1] = overlaid_img
+
             df_data.append([fname, pred_class, f"{conf*100:.1f}%"])
             state.append({
                 "filename": fname,
@@ -152,8 +166,8 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
                 "description": CLASS_DESCRIPTIONS[pred_class],
                 "image_idx": idx-1
             })
-            
         except Exception as e:
+            print(f"failed to predict image{e}")
             fname = f"image_{idx}"
             df_data.append([fname, "Error", "0%"])
             state.append({
@@ -164,22 +178,21 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
                 "description": str(e),
                 "image_idx": idx-1
             })
-    
+
     batch_html = generate_batch_overview(state)
-    
+
     # Generate detailed view for first image by default
     detailed_html = ""
     if state:
         detailed_html = generate_detailed_report(
-            state[0], 
-            state,  # Pass all predictions for navigation
-            0,      # Current index
-            image_data_store.get(0)
+            state[0], state,  # Pass all predictions for navigation
+            0,  # Current index
+            overlaid_images_store.get(0)  # Now passes the overlaid image
         )
-    
+
     return batch_html, detailed_html, df_data, state
 
-# tumor_types_data.append([filename, predicted_class.title(), round(confidence_score * 100, 2)])
+    # tumor_types_data.append([filename, predicted_class.title(), round(confidence_score * 100, 2)])
            # current_predictions.append({
            #     "filename": filename,
            #     "class": predicted_class,
@@ -273,56 +286,6 @@ def push_to_firebase(file_path, prediction):
     ref = db.reference("predication")
     ref.child(unique_id).set(data)
 
-
-# Helper functions
-def get_confidence_level(score: float) -> str:
-    # Confidence level with structured, clear output
-    if score > 0.95:
-        return (
-            "⭐⭐⭐⭐⭐ Exceptional Confidence (>95%)\n"
-            "- The model is extremely certain about this prediction."
-        )
-    elif score > 0.9:
-        return (
-            "⭐⭐⭐⭐ Very High Confidence (90-95%)\n"
-            "- The prediction is highly reliable."
-        )
-    elif score > 0.75:
-        return (
-            "⭐⭐⭐ High Confidence (75-90%)\n"
-            "- The model is confident, but clinical review is still advised."
-        )
-    elif score > 0.6:
-        return (
-            "⭐⭐ Moderate Confidence (60-75%)\n"
-            "- The result is moderately reliable. Consider additional review."
-        )
-    elif score > 0.4:
-        return (
-            "⭐ Low Confidence (40-60%)\n"
-            "- The prediction is uncertain. Manual review is recommended."
-        )
-    else:
-        return (
-            "❓ Very Low Confidence (<40%)\n"
-            "- The model is unsure. Strongly consider manual review and further diagnostics."
-        )
-
-def get_second_most_likely(probs, classes) -> str:
-    # Sort by probability, descending
-    sorted_probs = sorted(zip(probs, classes), key=lambda x: x[0], reverse=True)
-    return (
-        f"Second Most Likely: {sorted_probs[1][1].title()} "
-        f"({sorted_probs[1][0].item()*100:.2f}%)"
-    )
-
-def calculate_probability_spread(probs) -> float:
-    sorted_probs = torch.sort(probs, descending=True).values
-    return (sorted_probs[0] - sorted_probs[1]).item()
-
-def calculate_uncertainty(probs) -> float:
-    # Entropy: -sum(p*log(p)), add epsilon to avoid log(0)
-    return float(-torch.sum(probs * torch.log(probs + 1e-10)).item())
 
 def get_clinical_considerations(pred_class, confidence) -> str:
     considerations = {
