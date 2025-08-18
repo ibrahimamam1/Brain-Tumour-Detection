@@ -1,3 +1,9 @@
+---
+title: smartBraintumourDetection
+app_file: Web/main.py
+sdk: gradio
+sdk_version: 5.37.0
+---
 # Brain-Tumour-Detection
 Brain tumour Detection System from MRI input.
 

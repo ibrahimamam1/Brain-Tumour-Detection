@@ -19,8 +19,14 @@ MODEL_PATH = os.path.join(
 MODEL_ID = "1UaFw3vAuimY6r47mYbkyFXmtsjwDjsoP"
 MODEL_URL = f"https://drive.google.com/uc?export=download&id={MODEL_ID}"
 
-cred_path = os.path.join(os.path.dirname(__file__), "firebase.json")
 
+if not os.path.exists(os.path.join(os.path.dirname(__file__), "firebase.json")):
+    firebase_key = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
+    if firebase_key:
+        with open(os.path.join(os.path.dirname(__file__), "firebase.json"), 'w') as f:
+            f.write(firebase_key)
+
+cred_path = os.path.join(os.path.dirname(__file__), "firebase.json")
 cred = credentials.Certificate(cred_path)
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://brain-tumour-detection-8f253-default-rtdb.asia-southeast1.firebasedatabase.app/' 
