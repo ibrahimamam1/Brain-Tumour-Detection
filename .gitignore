@@ -177,3 +177,4 @@ Models/vit_brain_tumor.pth
 Models/model.pth
 *.pth
 *.pt
+Web/firebase.json

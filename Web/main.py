@@ -123,19 +123,12 @@ class GradioApp:
                 with gr.TabItem("📄 Detailed Reports"):
                     detailed_report_output = gr.HTML(elem_id="detailed-html")
                 with gr.TabItem("🧬 Tumor Types"):
-                    tumor_types_output = gr.Dataframe(
-                        headers=["Image", "Prediction", "Confidence %"],
-                        datatype=["str", "str", "number"],
-                        interactive=True,
-                        elem_id="tumor-types-df",
-                        wrap=True,
-                        row_count=5,
-                        col_count=(3, "fixed"),
-                        visible=True,
-                        label="Tumor Type Predictions"
-                    )
+                    tumor_types_output = gr.HTML(  
+                    elem_id = "tumor-types-html",
+                    label = "Tumor Type Information"
+                )            
             
-            # State for storing predictions
+        # State for storing predictions
             current_predictions = gr.State([])
             
             # Preview section (hidden by default)
@@ -164,17 +157,7 @@ class GradioApp:
                 inputs=image_input,
                 outputs=[summary_output, detailed_report_output, tumor_types_output, current_predictions]
             )
-            
-            tumor_types_output.select(
-                fn=self.show_image_details,
-                inputs=current_predictions,
-                outputs=[preview_image, preview_text]
-            ).then(
-                fn=lambda: gr.update(visible=True),
-                outputs=preview_row
-            )
-        
-        return app
+            return app
 
 # Usage
 if __name__ == "__main__":

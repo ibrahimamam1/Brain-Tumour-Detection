@@ -495,3 +495,92 @@ def generate_detailed_report(prediction: dict, predictions_list: list, current_i
     
     return report_html
 
+def generate_tumour_types(stats):
+
+    # Educational information for each tumor type
+    tumor_info = {
+        'glioma': {
+            'title': 'Glioma',
+            'description': 'Gliomas are tumors that arise from glial cells in the brain and spinal cord. They are the most common type of primary brain tumor in adults.',
+            'characteristics': 'Can range from low-grade (slow-growing) to high-grade (aggressive). Symptoms may include headaches, seizures, and neurological deficits.',
+            'treatment': 'Treatment typically involves surgery, radiation therapy, and/or chemotherapy depending on the grade and location.',
+            'severity': 'high',
+            'icon': '🧠'
+        },
+        'meningioma': {
+            'title': 'Meningioma',
+            'description': 'Meningiomas are tumors that develop from the meninges, the protective membranes surrounding the brain and spinal cord.',
+            'characteristics': 'Usually slow-growing and benign (90-95% of cases). More common in women and typically diagnosed in middle age.',
+            'treatment': 'Treatment may include observation, surgery, or radiation therapy. Many small meningiomas can be monitored without immediate treatment.',
+            'severity': 'medium',
+            'icon': '🛡️'
+        },
+        'notumor': {
+            'title': 'No Tumor Detected',
+            'description': 'No tumor or abnormal growth detected in the brain scan. This indicates normal brain tissue without signs of malignancy.',
+            'characteristics': 'Normal brain anatomy with no evidence of tumor formation or abnormal cell growth.',
+            'treatment': 'No treatment required. Regular follow-up may be recommended based on clinical symptoms or risk factors.',
+            'severity': 'low',
+            'icon': '✅'
+        },
+        'pituitary': {
+            'title': 'Pituitary Tumor',
+            'description': 'Pituitary tumors develop in the pituitary gland, a small organ at the base of the brain that controls hormone production.',
+            'characteristics': 'Most are benign adenomas. Can be functioning (hormone-producing) or non-functioning. May cause hormonal imbalances or vision problems.',
+            'treatment': 'Treatment options include medication, surgery, or radiation therapy depending on size, type, and symptoms.',
+            'severity': 'medium',
+            'icon': '⚡'
+        }
+    }
+    
+    # Generate HTML for tumor type cards
+    html_content = '<div class="tumor-types-container">'
+    html_content += '<h2 class="section-title">Brain Tumor Types & Statistics</h2>'
+    
+    for class_name in ['glioma', 'meningioma', 'notumor', 'pituitary']:
+        info = tumor_info[class_name]
+        class_stats = stats['class_stats'][class_name]
+        
+        # Calculate percentage of total predictions
+        percentage = (class_stats['count'] / stats['total_count'] * 100) if stats['total_count'] > 0 else 0
+        
+        # Determine severity class for styling
+        severity_class_name = f"severity-{info['severity']}"
+        
+        html_content += f"""
+        <div class="tumor-type-card {severity_class_name}">
+            <div class="tumor-header">
+                <span class="tumor-icon">{info['icon']}</span>
+                <h3 class="tumor-title">{info['title']}</h3>
+            </div>
+            
+            <div class="tumor-content">
+                <div class="tumor-description">
+                    <p><strong>Description:</strong> {info['description']}</p>
+                    <p><strong>Characteristics:</strong> {info['characteristics']}</p>
+                    <p><strong>Treatment:</strong> {info['treatment']}</p>
+                </div>
+                
+                <div class="tumor-stats">
+                    <h4>Prediction Statistics</h4>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Count:</span>
+                            <span class="stat-value">{class_stats['count']}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Percentage:</span>
+                            <span class="stat-value">{percentage:.1f}%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Avg Confidence:</span>
+                            <span class="stat-value">{class_stats['avg_confidence']:.1f}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """
+    
+    html_content += '</div>'
+    return html_content

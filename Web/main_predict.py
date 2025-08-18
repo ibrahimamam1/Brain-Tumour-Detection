@@ -23,11 +23,11 @@ MODEL_PATH = os.path.join(
 MODEL_ID = "1UaFw3vAuimY6r47mYbkyFXmtsjwDjsoP"
 MODEL_URL = f"https://drive.google.com/uc?export=download&id={MODEL_ID}"
 
-cred_path = os.path.join(os.path.dirname(__file__), "project-ml-c9e5f-firebase-adminsdk-fbsvc-2618b8c059.json")
+cred_path = os.path.join(os.path.dirname(__file__), "firebase.json")
 
 cred = credentials.Certificate(cred_path)
 firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://project-ml-c9e5f-default-rtdb.asia-southeast1.firebasedatabase.app/' 
+    'databaseURL': 'https://brain-tumour-detection-8f253-default-rtdb.asia-southeast1.firebasedatabase.app/' 
 })
 
 
@@ -93,8 +93,9 @@ import io
 import torch
 
 from utils.css_loader import get_css_styles
-from assets.templates.html_templates import generate_batch_overview, generate_detailed_report
+from assets.templates.html_templates import generate_batch_overview, generate_detailed_report, generate_tumour_types
 from attention_map import ViTAttentionMap, get_overlaid_image
+
 CLASS_NAMES = ['glioma', 'meningioma', 'notumor', 'pituitary']
 CLASS_DESCRIPTIONS = {
     'glioma': 'Tumor arising from glial cells in brain/spinal cord.',
@@ -146,7 +147,9 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
 
             pred_class, conf, all_conf = predict_image(img)
 
-            # Preprocess for model input
+            push_to_firebase(fname, pred_class, conf)
+            
+            # Generate Attention Map 
             input_tensor = transform(img).unsqueeze(0).to(device)
             # Compute attention map
             attn_map = vit_attn(input_tensor)
@@ -189,103 +192,70 @@ def predict_brain_tumor_batch(img_list: list) -> Tuple[str, str, List[List], Lis
             0,  # Current index
             overlaid_images_store.get(0)  # Now passes the overlaid image
         )
-
-    return batch_html, detailed_html, df_data, state
-
-    # tumor_types_data.append([filename, predicted_class.title(), round(confidence_score * 100, 2)])
-           # current_predictions.append({
-           #     "filename": filename,
-           #     "class": predicted_class,
-           #     "confidence": confidence_score * 100,
-           #     "image": img_data
-           # })
-#
-           # # Push to Firebase (keeping original functionality)
-           # push_to_firebase(file_path=img_data, prediction={
-           #     "filename": filename.split("\\")[-1],
-           #     "extra": (
-           #         f"class title: {predicted_class.title()}| "
-           #         f"class descriptions: {class_descriptions[predicted_class]} |  "
-           #         f"confidence score: {confidence_score:.4f} |  "
-           #         f"best round: {best_round_idx + 1} of {rounds} |  "
-           #         f"best avg confidence: {best_avg_conf.tolist()}   "
-           #     ),
-           #     "details": (
-           #         f"Probability Spread: {calculate_probability_spread(best_avg_conf)}  | | "
-           #         f"Uncertainty Index: {calculate_uncertainty(best_avg_conf)}  | | "
-           #         f"Confidence Level: {get_confidence_level(confidence_score)}  | | "
-           #         f"Second Most Likely: {get_second_most_likely(best_avg_conf, class_names)}  | | "
-           #         f"Clinical Considerations: {get_clinical_considerations(predicted_class, confidence_score)} "
-           #     ),
-           #     "analysis3": (
-           #         f"Top-1 Class: {predicted_class.title()} with confidence {confidence_score * 100:.2f}%. | | "
-           #         f"Top-2 Class: {second_class.title()} with confidence {second_confidence * 100:.2f}%. | | "
-           #         f"Prediction confidence across classes: {best_avg_conf.tolist()}. | | "
-           #         f"Best result obtained in round {best_round_idx + 1} of {rounds}. | | "
-           #     ),
-           #     "analysis2": (
-           #         f"Top Prediction: {predicted_class.title()} ({confidence_score * 100:.2f}%) | |  "
-           #         f"Second Prediction: {second_class.title()} ({second_confidence * 100:.2f}%) | | "
-           #         f"Best Round: {best_round_idx + 1} of {rounds} |  |  "
-           #         f"Avg Confidence Per Class: {best_avg_conf.tolist()}  "
-           #     )
-           # })
-
-       # except Exception as e:
-       #     print(f"Done processing image: {e}")
-
-PIXELDRAIN_API_KEY = "91d780db-af6e-4cc9-b3f2-1f80ba77817c"  # Replace with your Pixeldrain API key
-import base64    
-import os
-
-
-def upload_file_gofile(file_path: str) -> str:
-
-    file_name = os.path.basename(file_path)
-    url = f"https://pixeldrain.com/api/file/{file_name}"
     
-    headers = {}
-    if PIXELDRAIN_API_KEY:
-        # Authorization: Basic :<API‑KEY> (حقل username فارغ)
-        token = base64.b64encode(f":{PIXELDRAIN_API_KEY}".encode()).decode()
-        headers["Authorization"] = f"Basic {token}"
-    
-    #with open(file_path, "rb") as f:
-        #resp = requests.put(url, data=f, headers=headers, timeout=60)
-    
-   # if resp.status_code in (200, 201):
-   #     data = resp.json()
-   #     file_id = data.get("id") or data.get("data", {}).get("id")
-   #     print(f"File uploaded successfully: {file_id}")
-   #     if not file_id:
-   #         raise Exception(f"Unexpected response: {data}")
-   #     return f"https://pixeldrain.com/api/file/{file_id}"
-   # else:
-   #     raise Exception(f"Upload failed {resp.status_code}: {resp.text}")
+    #Get stats from firebase 
+    stats = get_stats_from_firebase()
+    tumour_types = generate_tumour_types(stats)
+    return batch_html, detailed_html, tumour_types, state
 
 
+def push_to_firebase(fname, class_name, confidence):
 
-def push_to_firebase(file_path, prediction):
-
-    gofile_url = upload_file_gofile(file_path)
-
- 
     unique_id = str(uuid.uuid4())
-
     data = {
-         "filename": prediction.get("filename", "")
-        , "extra": prediction.get("extra", "")
-        , "url": gofile_url
-        , "details": prediction.get("details", "")
-        , "analysis2": prediction.get("analysis2", "")
-        , "analysis3": prediction.get("analysis3", ""),
         "id": unique_id
+        , "filename": fname
+        , "class": class_name
+        , "confidence": confidence
     }
 
-
-    ref = db.reference("predication")
+    ref = db.reference("predictions")
     ref.child(unique_id).set(data)
 
+def get_stats_from_firebase():
+    ref = db.reference("predictions")
+    
+    # Get all predictions data
+    predictions = ref.get()
+    
+    # Initialize statistics dictionary
+    stats = {
+        'total_count': 0,
+        'class_stats': {
+            'glioma': {'count': 0, 'total_confidence': 0, 'avg_confidence': 0},
+            'meningioma': {'count': 0, 'total_confidence': 0, 'avg_confidence': 0},
+            'notumor': {'count': 0, 'total_confidence': 0, 'avg_confidence': 0},
+            'pituitary': {'count': 0, 'total_confidence': 0, 'avg_confidence': 0}
+        }
+    }
+    
+    if not predictions:
+        return stats
+    
+    for prediction_id, prediction_data in predictions.items():
+        if not prediction_data:
+            continue
+            
+        # Get the predicted class and confidence from details
+        predicted_class = prediction_data.get('class', '')
+        confidence = float(prediction_data.get('confidence', 0))
+        
+        # Update overall count
+        stats['total_count'] += 1
+        
+        # Update class-specific stats if class is valid
+        if predicted_class in stats['class_stats']:
+            stats['class_stats'][predicted_class]['count'] += 1
+            stats['class_stats'][predicted_class]['total_confidence'] += confidence
+    
+    # Calculate average confidence for each class
+    for class_name, class_stat in stats['class_stats'].items():
+        if class_stat['count'] > 0:
+            class_stat['avg_confidence'] = class_stat['total_confidence'] / class_stat['count']
+        else:
+            class_stat['avg_confidence'] = 0
+    
+    return stats
 
 def get_clinical_considerations(pred_class, confidence) -> str:
     considerations = {
