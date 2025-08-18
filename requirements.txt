@@ -5,3 +5,7 @@ firebase_admin
 requests
 gradio
 gdown
+timm
+numpy
+matplotlib
+
