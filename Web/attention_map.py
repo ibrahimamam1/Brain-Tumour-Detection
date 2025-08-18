@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.cm as cm
 from PIL import Image
 
+
 class ViTAttentionMap:
     def __init__(self, model):
         self.model = model

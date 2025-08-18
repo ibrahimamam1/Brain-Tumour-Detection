@@ -12,6 +12,7 @@ def severity_class(predicted_class: str) -> str:
     }
     return mapping.get(predicted_class.lower(), 'severity-unknown')
 
+
 def severity_icon(predicted_class: str) -> str:
     """Map tumor class to icon"""
     mapping = {
@@ -21,8 +22,10 @@ def severity_icon(predicted_class: str) -> str:
         'notumor': '🟢',
     }
     return mapping.get(predicted_class.lower(), '⚪')
+
+
 def generate_result_card(pred: dict, index: int) -> str:
-    """Generate result card with data attributes instead of onclick"""
+    """Generate result card"""
     return f"""
     <div class="result-card {severity_class(pred['predicted_class'])}" 
          data-index="{index}" data-action="switch-to-detailed">
@@ -39,7 +42,7 @@ def generate_result_card(pred: dict, index: int) -> str:
 
 
 def generate_batch_overview(predictions: list) -> str:
-    """Generate batch overview with event delegation"""
+    """Generate batch overview"""
     total = len(predictions)
     tumors = sum(1 for p in predictions if p['predicted_class'] != 'notumor')
     normals = total - tumors
@@ -87,69 +90,7 @@ def generate_batch_overview(predictions: list) -> str:
         }}
         </style>
     </div>
-    
-    <script>
-    // Use setTimeout to ensure this runs after the DOM is ready
-    setTimeout(function() {{
-        // Set up event delegation for result cards
-        document.addEventListener('click', function(e) {{
-            const card = e.target.closest('[data-action="switch-to-detailed"]');
-            if (card) {{
-                const index = parseInt(card.getAttribute('data-index'));
-                
-                // Store selection globally
-                window.selectedPredictionIndex = index;
-                localStorage.setItem('selectedPredictionIndex', index);
-                
-                // Visual feedback
-                document.querySelectorAll('.result-card').forEach(c => c.classList.remove('selected'));
-                card.classList.add('selected');
-                
-                // Try to switch tabs
-                switchToDetailedTabMultiple();
-            }}
-        }});
-        
-        // Store predictions data globally with multiple fallbacks
-        try {{
-            const dataEl = document.getElementById('predictions-data');
-            if (dataEl) {{
-                window.currentPredictions = JSON.parse(dataEl.textContent);
-            }}
-        }} catch (e) {{
-            console.log('Could not parse predictions data');
-        }}
-        
-        // Multiple strategies to find and click detailed tab
-        function switchToDetailedTabMultiple() {{
-            const strategies = [
-                () => document.querySelector('button[data-testid*="detailed"]'),
-                () => document.querySelector('button[data-testid*="analysis"]'),
-                () => document.querySelector('button:nth-child(2)[role="tab"]'),
-                () => document.querySelectorAll('button[role="tab"]')[1],
-                () => document.querySelectorAll('.tab-nav button')[1],
-                () => Array.from(document.querySelectorAll('button')).find(b => b.textContent.toLowerCase().includes('detailed')),
-                () => Array.from(document.querySelectorAll('button')).find(b => b.textContent.toLowerCase().includes('analysis'))
-            ];
-            
-            for (let strategy of strategies) {{
-                try {{
-                    const tab = strategy();
-                    if (tab) {{
-                        tab.click();
-                        console.log('Successfully clicked detailed tab');
-                        return;
-                    }}
-                }} catch (e) {{
-                    continue;
-                }}
-            }}
-            
-            console.warn('Could not find detailed tab');
-        }}
-    }}, 500);
-    </script>
-    """
+        """
 
 
 def generate_navigation_panel(predictions: list, current_index: int = 0) -> str:
@@ -496,7 +437,6 @@ def generate_detailed_report(prediction: dict, predictions_list: list, current_i
     return report_html
 
 def generate_tumour_types(stats):
-
     # Educational information for each tumor type
     tumor_info = {
         'glioma': {
@@ -505,7 +445,8 @@ def generate_tumour_types(stats):
             'characteristics': 'Can range from low-grade (slow-growing) to high-grade (aggressive). Symptoms may include headaches, seizures, and neurological deficits.',
             'treatment': 'Treatment typically involves surgery, radiation therapy, and/or chemotherapy depending on the grade and location.',
             'severity': 'high',
-            'icon': '🧠'
+            'icon': '🧠',
+            'wiki_link': 'https://en.wikipedia.org/wiki/Glioma'
         },
         'meningioma': {
             'title': 'Meningioma',
@@ -513,7 +454,8 @@ def generate_tumour_types(stats):
             'characteristics': 'Usually slow-growing and benign (90-95% of cases). More common in women and typically diagnosed in middle age.',
             'treatment': 'Treatment may include observation, surgery, or radiation therapy. Many small meningiomas can be monitored without immediate treatment.',
             'severity': 'medium',
-            'icon': '🛡️'
+            'icon': '🛡️',
+            'wiki_link': 'https://en.wikipedia.org/wiki/Meningioma'
         },
         'notumor': {
             'title': 'No Tumor Detected',
@@ -521,7 +463,8 @@ def generate_tumour_types(stats):
             'characteristics': 'Normal brain anatomy with no evidence of tumor formation or abnormal cell growth.',
             'treatment': 'No treatment required. Regular follow-up may be recommended based on clinical symptoms or risk factors.',
             'severity': 'low',
-            'icon': '✅'
+            'icon': '✅',
+            'wiki_link': 'https://en.wikipedia.org/wiki/Brain_tumor'
         },
         'pituitary': {
             'title': 'Pituitary Tumor',
@@ -529,7 +472,8 @@ def generate_tumour_types(stats):
             'characteristics': 'Most are benign adenomas. Can be functioning (hormone-producing) or non-functioning. May cause hormonal imbalances or vision problems.',
             'treatment': 'Treatment options include medication, surgery, or radiation therapy depending on size, type, and symptoms.',
             'severity': 'medium',
-            'icon': '⚡'
+            'icon': '⚡',
+            'wiki_link': 'https://en.wikipedia.org/wiki/Pituitary_adenoma'
         }
     }
     
@@ -559,21 +503,22 @@ def generate_tumour_types(stats):
                     <p><strong>Description:</strong> {info['description']}</p>
                     <p><strong>Characteristics:</strong> {info['characteristics']}</p>
                     <p><strong>Treatment:</strong> {info['treatment']}</p>
+                    <p><a href="{info['wiki_link']}" target="_blank" rel="noopener noreferrer">Learn More →</a></p>
                 </div>
                 
                 <div class="tumor-stats">
                     <h4>Prediction Statistics</h4>
                     <div class="stats-grid">
                         <div class="stat-item">
-                            <span class="stat-label">Count:</span>
-                            <span class="stat-value">{class_stats['count']}</span>
+                            <span class="stat-label">Total Predictions:</span>
+                            <span class="stat-value">{class_stats['count']} cases</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Percentage:</span>
+                            <span class="stat-label">Percentage of All Predictions:</span>
                             <span class="stat-value">{percentage:.1f}%</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Avg Confidence:</span>
+                            <span class="stat-label">Average Confidence:</span>
                             <span class="stat-value">{class_stats['avg_confidence']:.1f}%</span>
                         </div>
                     </div>

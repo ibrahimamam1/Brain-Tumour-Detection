@@ -1,9 +1,9 @@
 import gradio as gr
 from PIL import Image
 import io
-import os
 from pathlib import Path
 from main_predict import predict_brain_tumor_batch
+
 
 class GradioApp:
     def __init__(self, assets_dir="assets"):

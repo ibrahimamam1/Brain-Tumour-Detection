@@ -7,6 +7,12 @@ html, body, .gradio-container {
     padding: 0;
 }
 
+/*tab button styles*/
+#component-10-button, #component-12-button,  #component-14-button {
+  color: #9C27B0 !important;
+}
+
+
 /* Force dark text on all elements */
 * {
     color: #1e293b !important;

@@ -1,21 +1,17 @@
 import os
 import torch
-import urllib.request
-import random  # Added for the random noise transform
 from torchvision import transforms 
 from PIL import Image
-import torchvision.models as models
 from typing import List, Tuple
 import io
 import uuid
 import firebase_admin
-from firebase_admin import initialize_app
 from firebase_admin import credentials, db
-import os 
 import gdown
 import timm 
-# ========== CONFIGURATION ========== #
 
+
+# ========== CONFIGURATION ========== #
 MODEL_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
     os.path.join("Models", "model.pth"))
@@ -251,44 +247,11 @@ def get_stats_from_firebase():
     # Calculate average confidence for each class
     for class_name, class_stat in stats['class_stats'].items():
         if class_stat['count'] > 0:
-            class_stat['avg_confidence'] = class_stat['total_confidence'] / class_stat['count']
+            class_stat['avg_confidence'] = class_stat['total_confidence'] / class_stat['count'] * 100
         else:
             class_stat['avg_confidence'] = 0
     
     return stats
-
-def get_clinical_considerations(pred_class, confidence) -> str:
-    considerations = {
-        'glioma': [
-            "• Gliomas can be aggressive and require prompt attention.",
-            "• Recommend follow-up with neurologist and MRI spectroscopy.",
-            "• Consider grading evaluation (low-grade vs high-grade)."
-        ],
-        'meningioma': [
-            "• Most meningiomas are benign (WHO Grade I).",
-            "• Recommend monitoring growth rate if asymptomatic.",
-            "• Surgical resection may be indicated for symptomatic cases."
-        ],
-        'notumor': [
-            "• No immediate intervention needed.",
-            "• Recommend routine follow-up if clinically indicated.",
-            "• Consider alternative diagnoses if symptoms persist."
-        ],
-        'pituitary': [
-            "• Endocrine evaluation recommended.",
-            "• Assess for hormonal hypersecretion syndromes.",
-            "• Monitor for visual field defects if macroadenoma."
-        ]
-    }
-    base = "CLINICAL CONSIDERATIONS:\n" + "\n".join(considerations.get(pred_class, []))
-    if confidence < 0.7:
-        base += (
-            "\n\n⚠️ NOTE: Due to lower confidence in prediction, consider:\n"
-            "• Additional imaging (contrast-enhanced MRI).\n"
-            "• Second opinion from neuroradiologist.\n"
-            "• Clinical correlation with patient symptoms."
-        )
-    return base
 
 
 # Initialize model
