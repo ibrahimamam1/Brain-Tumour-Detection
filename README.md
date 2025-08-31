@@ -80,3 +80,17 @@ Deployed with a **Gradio interface** on Hugging Face Spaces.
 
 ---
 
+## 🖥️ Run Locally
+
+```bash
+# Clone repo
+git clone https://github.com/ibrahimamam1/Brain-Tumour-Detection.git
+cd Brain-Tumour-Detection/Web
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run app
+python main.py
+
+---
