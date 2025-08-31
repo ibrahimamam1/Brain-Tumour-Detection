@@ -53,14 +53,14 @@ Deployed with a **Gradio interface** on Hugging Face Spaces.
 - **Source Code:** [GitHub Repository](https://github.com/ibrahimamam1/Brain-Tumour-Detection.git)  
 
 ---
+## 🚀 Hugging Face Space Metadata
 
-## 👨‍💻 My Contribution (Kazi Shakkhar Rahman – 210041240)
-As part of this project, I was responsible for:  
-- ✅ **Strict dataset separation** → ensuring completely independent training/testing sources  
-- ✅ **Implementing the Vision Transformer (ViT) model**  
-- ✅ **Model training, evaluation, and documentation**  
-- ✅ **Visualization** (Confusion matrix, training/loss curves)  
-- ✅ **Creating testing workflow** → load trained model without retraining for quick evaluation  
+| Field       | Value                        |
+|-------------|------------------------------|
+| **title**   | smartBraintumourDetection    |
+| **app_file**| Web/main.py                  |
+| **sdk**     | gradio                       |
+| **sdk_version** | 5.37.0                   |
 
 ---
 
